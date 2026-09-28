@@ -153,6 +153,11 @@ The demo never follows a tag. Pin the digest in two repositories, in the same ch
 - **GPU capacity.** On 2026-09-28 AWS had no `g7e.2xlarge` capacity in any zone of us-east-2, and
   `g7e.4xlarge` only in us-east-2a after about 20 minutes. This does not affect the build (it runs on
   a CPU worker), but it affects every test of the image. Check the capacity before a demo.
+- **Pull of the large layer.** On 2026-09-28 the first pull on a `g7e.4xlarge` node took 24 minutes
+  (20:43-21:07 UTC). The CRI-O log shows that the connection for the 19.5 GB layer ended with
+  `unexpected EOF` every 10 minutes (20:53, 21:03); CRI-O reconnected and went on each time. The
+  pull works, but it is slow. The pre-pull of the `ansible` repo hides most of this time on a new
+  cluster.
 - **Hugging Face changes.** The `Containerfile` pins the commit and the checksums. If Red Hat AI
   publishes a new revision, update the commit, the checksums and the tag together (see the README,
   "Add a model"). A wrong checksum stops the build at that `ADD`.
