@@ -9,6 +9,12 @@
 # kubernetes.io/dockerconfigjson that can push to the Quay repository (a Quay robot account).
 # The script creates the namespace if it is missing, but never the Secret.
 #
+# Disk: the build needs about 3 times the model size of free local disk, above the kubelet
+# eviction threshold (80 GB for a 25 GB model). A default worker (120 GiB root disk) is not enough:
+# the pod was evicted there. Set BUILD_NODE to the name of a node with more free disk, for example
+# a GPU node (200 GiB root disk). The script then pins the build to that node and lets the pods of
+# the namespace tolerate the nvidia.com/gpu taint.
+#
 # At the end it prints the digest to pin in the gitops and ansible repos.
 set -euo pipefail
 
@@ -31,6 +37,12 @@ fi
 
 oc get namespace "${namespace}" >/dev/null 2>&1 || oc create namespace "${namespace}"
 
+if [[ -n "${BUILD_NODE:-}" ]]; then
+  # BuildConfig has no tolerations field: a default toleration of the namespace covers the build pod.
+  oc annotate namespace "${namespace}" --overwrite \
+    'scheduler.alpha.kubernetes.io/defaultTolerations=[{"key":"nvidia.com/gpu","operator":"Exists","effect":"NoSchedule"}]'
+fi
+
 if ! oc -n "${namespace}" get secret "${push_secret}" >/dev/null 2>&1; then
   cat >&2 <<EOF
 Secret ${push_secret} not found in ${namespace}. Create it from the Quay robot account:
@@ -44,6 +56,13 @@ fi
 oc process -f "${repo_dir}/openshift/buildconfig.yaml" \
   -p MODEL="${model}" -p TAG="${tag}" -p REPOSITORY="${repository}" -p PUSH_SECRET="${push_secret}" \
   | oc -n "${namespace}" apply -f -
+
+if [[ -n "${BUILD_NODE:-}" ]]; then
+  oc -n "${namespace}" patch bc "modelcar-${model}" --type=merge \
+    -p "{\"spec\":{\"nodeSelector\":{\"kubernetes.io/hostname\":\"${BUILD_NODE}\"}}}"
+else
+  oc -n "${namespace}" patch bc "modelcar-${model}" --type=json -p '[{"op":"remove","path":"/spec/nodeSelector"}]' 2>/dev/null || true
+fi
 
 build="$(oc -n "${namespace}" start-build "modelcar-${model}" --from-dir="${repo_dir}/${model}" -o name)"
 echo "Started ${build}; following the log."

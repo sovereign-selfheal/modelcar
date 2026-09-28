@@ -21,8 +21,9 @@ parameters:
     value: quay-push
   - name: EPHEMERAL_STORAGE
     description: >-
-      Local disk the build pod needs: the downloads, the layers and the compressed blobs
-      for the push, about 2.5 times the model size
+      Local disk the build pod asks for: the downloads, the layers and the compressed blobs
+      for the push. The request only places the pod; the build uses about 3 times the model
+      size (see BUILD_NODE in scripts/build-on-openshift.sh)
     value: 70Gi
 objects:
   - apiVersion: build.openshift.io/v1

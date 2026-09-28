@@ -30,6 +30,7 @@ The image offers this interface:
 
 ```
 <model>/Containerfile           # one directory per model; files from Hugging Face at a fixed commit
+docs/build-<model>.md           # build guide of each model (commands, measured times, pins)
 openshift/buildconfig.yaml      # Template: binary Docker BuildConfig that pushes to Quay
 scripts/build-on-openshift.sh   # runs the build on a cluster and prints the digest
 .github/workflows/ci.yml        # lint only (the images are too large for the CI runners)

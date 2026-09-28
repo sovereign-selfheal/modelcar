@@ -17,6 +17,8 @@ GPU nodes can pre-pull it. Read [`AGENTS.md`](AGENTS.md) before changing anythin
 Qwen3.8-27B-NVFP4 needs a GPU with native FP4 (NVIDIA Blackwell, for example the RTX PRO 6000 of the
 AWS `g7e` instances). On older GPUs vLLM falls back to slower kernels.
 
+Step-by-step build guide for this image: [`docs/build-qwen38-27b-nvfp4.md`](docs/build-qwen38-27b-nvfp4.md).
+
 Each `Containerfile` downloads the files from Hugging Face at a fixed commit and checks their sha256.
 Every large file is its own layer, so CRI-O pulls the layers in parallel.
 
@@ -37,14 +39,15 @@ no cause. The same `Containerfile` builds on OpenShift.
 2. Once per model: create the repository `quay.io/sovereign-selfheal/modelcar-<model directory>`
    (public) and a robot account with write access to it.
 3. Log in to the cluster with `oc`, create the push Secret, run the build (same tag as git), then
-   delete the namespace. The build pod needs about 2.5 times the model size of local disk (70 GiB
-   for 25 GB); the download from Hugging Face and the push take tens of minutes.
+   delete the namespace. The build needs about 3 times the model size of free disk above the
+   eviction threshold (80 GB for 25 GB): run it on a GPU node with `BUILD_NODE`. It takes about
+   35 minutes for 25 GB. Details and measurements: [`docs/build-qwen38-27b-nvfp4.md`](docs/build-qwen38-27b-nvfp4.md).
 
    ```bash
    oc create namespace modelcar-build
    oc -n modelcar-build create secret docker-registry quay-push \
      --docker-server=quay.io --docker-username='<robot name>' --docker-password='<robot token>'
-   scripts/build-on-openshift.sh qwen38-27b-nvfp4 qwen38-27b-nvfp4-d23c6ff   # prints the digest
+   BUILD_NODE=<gpu node> scripts/build-on-openshift.sh qwen38-27b-nvfp4 qwen38-27b-nvfp4-d23c6ff   # prints the digest
    oc delete namespace modelcar-build
    ```
 
