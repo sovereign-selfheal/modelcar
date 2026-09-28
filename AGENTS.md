@@ -30,8 +30,8 @@ The image offers this interface:
 
 ```
 <model>/Containerfile           # one directory per model; files from Hugging Face at a fixed commit
-openshift/buildconfig.yaml      # fallback only: binary Docker BuildConfig that pushes to Quay
-scripts/build-on-openshift.sh   # fallback only: runs that build on a cluster, prints the digest
+openshift/buildconfig.yaml      # Template: binary Docker BuildConfig that pushes to Quay
+scripts/build-on-openshift.sh   # runs the build on a cluster and prints the digest
 .github/workflows/ci.yml        # lint only (the images are too large for the CI runners)
 ```
 
@@ -40,9 +40,9 @@ scripts/build-on-openshift.sh   # fallback only: runs that build on a cluster, p
 - **Pins**: the base image by digest, the model by Hugging Face commit, and every file by sha256
   (`ADD --checksum`). A comment says where and when each pin was resolved.
 - **One layer per large file**, so that CRI-O pulls the layers in parallel.
-- **Quay builds the images** from git tags (one build trigger per model directory). This repo
-  pushes nothing. If a model is too large for the Quay builders, build it on OpenShift instead
-  (`scripts/build-on-openshift.sh`, see README), never on a laptop: a model is tens of GB.
+- **Build on OpenShift** (`scripts/build-on-openshift.sh`), close to Hugging Face and Quay, never on a
+  laptop: a model is tens of GB. A Quay build trigger failed in `unpacking` (see README), so there is
+  no trigger. A Quay robot account pushes; its token is never committed.
 - **Tags**: `<model directory>-<first 7 characters of the Hugging Face commit>`, for example
   `qwen38-27b-nvfp4-d23c6ff`. The git tag and the image tag are the same. Never move, delete or
   reuse a tag. `gitops` never follows a tag.
@@ -52,8 +52,9 @@ scripts/build-on-openshift.sh   # fallback only: runs that build on a cluster, p
 ## 5. Release of a model image
 
 1. Merge the new or changed `<model>/Containerfile` on `main` with a green CI.
-2. Tag `<model directory>-<commit>` and push the tag. The Quay build trigger of that model builds
-   it and publishes `quay.io/sovereign-selfheal/modelcar-<model directory>:<tag>`.
+2. Tag `<model directory>-<commit>` and push the tag. Run `scripts/build-on-openshift.sh <model
+   directory> <tag>` on a cluster (see README): it publishes
+   `quay.io/sovereign-selfheal/modelcar-<model directory>:<tag>` and prints the digest.
 3. PR on `gitops` (`storageUri` by digest, `# tag <tag>, resolved on quay.io on <date>`) and on `ansible`
    (`model_prepull_images`, same digest).
 

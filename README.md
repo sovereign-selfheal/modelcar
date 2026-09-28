@@ -22,21 +22,32 @@ Every large file is its own layer, so CRI-O pulls the layers in parallel.
 
 ## Release
 
-Quay builds the images. Each model directory has its own Quay repository with a build trigger on
-this GitHub repo, like the `router` and `presidio` images. Nobody needs Quay credentials to use an
-image: the repositories are public, and a new cluster pulls them anonymously.
+The images are built on an OpenShift cluster (Build capability enabled) and pushed to Quay with
+a robot account. This is a release step, done once per model version. Nobody needs Quay
+credentials to use an image: the repositories are public, and a new cluster pulls them
+anonymously.
 
-1. Merge the change on `main`. The CI must be green.
-2. Create and push a tag `<model directory>-<first 7 characters of the Hugging Face commit>`:
+Why not a Quay build trigger, like the `router` and `presidio` images? On 2026-09-28 the trigger
+of `qwen38-27b-nvfp4` failed three times in a row in the `unpacking` phase with an internal error,
+with the context in the model directory and at `/`, and Quay then disabled it. The Quay logs show
+no cause. The same `Containerfile` builds on OpenShift.
+
+1. Merge the change on `main`. The CI must be green. Create and push a git tag
+   `<model directory>-<first 7 characters of the Hugging Face commit>` on that commit.
+2. Once per model: create the repository `quay.io/sovereign-selfheal/modelcar-<model directory>`
+   (public) and a robot account with write access to it.
+3. Log in to the cluster with `oc`, create the push Secret, run the build (same tag as git), then
+   delete the namespace. The build pod needs about 2.5 times the model size of local disk (70 GiB
+   for 25 GB); the download from Hugging Face and the push take tens of minutes.
 
    ```bash
-   git tag qwen38-27b-nvfp4-d23c6ff
-   git push origin qwen38-27b-nvfp4-d23c6ff
+   oc create namespace modelcar-build
+   oc -n modelcar-build create secret docker-registry quay-push \
+     --docker-server=quay.io --docker-username='<robot name>' --docker-password='<robot token>'
+   scripts/build-on-openshift.sh qwen38-27b-nvfp4 qwen38-27b-nvfp4-d23c6ff   # prints the digest
+   oc delete namespace modelcar-build
    ```
 
-3. Quay builds `<model directory>/Containerfile` and publishes
-   `quay.io/sovereign-selfheal/modelcar-<model directory>:<tag>`. The build downloads the model
-   from Hugging Face, so it takes a while (tens of minutes for 25 GB).
 4. Pin the digest in the `gitops` repo (`bootstrap/values.yaml`, `localModel.profiles.gpu.storageUri`)
    and in the `ansible` repo (`roles/model_prepull/defaults/main.yml`), with the comment
    `# tag <tag>, resolved on quay.io on <date>`. Open the PRs.
@@ -47,28 +58,6 @@ Never move or reuse a tag. To read the digest of a tag:
 oc image info quay.io/sovereign-selfheal/modelcar-qwen38-27b-nvfp4:qwen38-27b-nvfp4-d23c6ff
 ```
 
-### Quay setup (once per model)
-
-1. Create the repository `quay.io/sovereign-selfheal/modelcar-<model directory>`, public.
-2. Add a build trigger on the GitHub repository `sovereign-selfheal/modelcar`:
-   - Dockerfile: `/<model directory>/Containerfile`; context: `/<model directory>`;
-   - only tags that match `refs/tags/<model directory>-.*`;
-   - tag the image with the git tag name.
-
-### Fallback: build on OpenShift
-
-If a model is too large for the Quay builders (disk or time limit), build it on an OpenShift
-cluster (Build capability enabled) and push it with a Quay robot account. The build pod needs
-about 2.5 times the model size of local disk (70 GiB for 25 GB).
-
-```bash
-oc create namespace modelcar-build
-oc -n modelcar-build create secret docker-registry quay-push \
-  --docker-server=quay.io --docker-username='<robot name>' --docker-password='<robot token>'
-scripts/build-on-openshift.sh qwen38-27b-nvfp4 qwen38-27b-nvfp4-d23c6ff   # prints the digest
-oc delete namespace modelcar-build
-```
-
 ## Add a model
 
 1. Create `<model>/Containerfile` from an existing one. Pin the Hugging Face commit and the sha256 of every
@@ -76,7 +65,7 @@ oc delete namespace modelcar-build
    `curl -s https://huggingface.co/api/models/<org>/<model>/tree/<commit>`. For small files, download
    them and run `sha256sum`.
 2. Keep one `ADD` per large file.
-3. Open a PR, set up Quay for the new directory, then tag and pin as above.
+3. Open a PR, then build and pin as above.
 
 ## License
 

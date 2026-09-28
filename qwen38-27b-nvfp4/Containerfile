@@ -4,7 +4,7 @@
 # One ADD per large file gives one layer per file: CRI-O pulls the layers in parallel,
 # while a single 25 GB layer is pulled over one connection only.
 #
-# Built by Quay from the git tag qwen38-27b-nvfp4-<commit> (see README.md).
+# Build: scripts/build-on-openshift.sh qwen38-27b-nvfp4 <tag>  (see README.md)
 
 # DL3020: every ADD downloads a URL (${HF_URL}/...); hadolint does not expand the ARG.
 # hadolint global ignore=DL3020
