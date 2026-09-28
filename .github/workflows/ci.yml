@@ -1,0 +1,40 @@
+---
+name: ci
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  HADOLINT_VERSION: v2.15.1
+  # Python tools, run with uv (never pip).
+  YAMLLINT_VERSION: 1.38.0
+
+# Lint only: the model images are tens of GB, too large for the CI runners.
+# They are built on OpenShift with scripts/build-on-openshift.sh.
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+
+      - name: yamllint
+        run: uvx yamllint@${YAMLLINT_VERSION} .
+
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: hadolint
+        run: |
+          for file in */Containerfile; do
+            echo "${file}"
+            docker run --rm -i "hadolint/hadolint:${HADOLINT_VERSION}" < "${file}"
+          done

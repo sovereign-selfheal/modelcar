@@ -1,0 +1,13 @@
+# Credentials: never commit
+*.kubeconfig
+kubeconfig
+*.pem
+*.key
+.secrets/
+auth.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+__pycache__/

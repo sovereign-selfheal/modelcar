@@ -1,0 +1,59 @@
+# Binary Docker build of one modelcar directory. scripts/build-on-openshift.sh fills in
+# MODEL, TAG and REPOSITORY with `oc process` and uploads the directory with
+# `oc start-build --from-dir`: the cluster does not need access to this git repo.
+# The build downloads the model from Hugging Face and pushes it to Quay.
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: modelcar-build
+parameters:
+  - name: MODEL
+    description: Directory of this repo with the Containerfile (for example qwen38-27b-nvfp4)
+    required: true
+  - name: TAG
+    description: Image tag (never reused)
+    required: true
+  - name: REPOSITORY
+    description: Quay repository without tag
+    required: true
+  - name: PUSH_SECRET
+    description: Secret of type kubernetes.io/dockerconfigjson that can push to REPOSITORY
+    value: quay-push
+  - name: EPHEMERAL_STORAGE
+    description: >-
+      Local disk the build pod needs: the downloads, the layers and the compressed blobs
+      for the push, about 2.5 times the model size
+    value: 70Gi
+objects:
+  - apiVersion: build.openshift.io/v1
+    kind: BuildConfig
+    metadata:
+      name: modelcar-${MODEL}
+      labels:
+        app.kubernetes.io/name: modelcar-build
+        app.kubernetes.io/instance: ${MODEL}
+    spec:
+      runPolicy: Serial
+      source:
+        type: Binary
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: Containerfile
+          # The base image is public: no pull secret.
+      output:
+        to:
+          kind: DockerImage
+          name: ${REPOSITORY}:${TAG}
+        pushSecret:
+          name: ${PUSH_SECRET}
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+          ephemeral-storage: ${EPHEMERAL_STORAGE}
+        limits:
+          cpu: "4"
+          memory: 8Gi
+      # Downloading and pushing 25 GB takes about 30 minutes; leave room for a slow network.
+      completionDeadlineSeconds: 10800

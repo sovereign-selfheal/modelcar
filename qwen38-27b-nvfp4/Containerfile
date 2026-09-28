@@ -1,0 +1,41 @@
+# Modelcar of RedHatAI/Qwen3.8-27B-NVFP4 for KServe (storageUri: oci://...).
+#
+# Every file comes from Hugging Face at one fixed commit and is checked with its sha256.
+# One ADD per large file gives one layer per file: CRI-O pulls the layers in parallel,
+# while a single 25 GB layer is pulled over one connection only.
+#
+# Built by Quay from the git tag qwen38-27b-nvfp4-<commit> (see README.md).
+
+# DL3020: every ADD downloads a URL (${HF_URL}/...); hadolint does not expand the ARG.
+# hadolint global ignore=DL3020
+
+# ubi9/ubi-micro 9.8 (linux/amd64), resolved on registry.access.redhat.com on 2026-09-28.
+# KServe starts the modelcar as a sidecar with a shell command, so the image needs a shell.
+FROM registry.access.redhat.com/ubi9/ubi-micro@sha256:932aec77f5b86a5dba854a18b14a38725b296967e7dc9c7a1f4d7f0bf82e1ce5
+
+# Hugging Face commit of RedHatAI/Qwen3.8-27B-NVFP4, resolved on 2026-09-28 (last change 2026-09-25).
+ARG HF_URL=https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4/resolve/d23c6ff198a005532746610e9d719c9f6d27a2b1
+
+LABEL name="modelcar-qwen38-27b-nvfp4" \
+      summary="Qwen3.8-27B-NVFP4 (RedHatAI) model files for KServe modelcar" \
+      org.opencontainers.image.source="https://github.com/sovereign-selfheal/modelcar" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      model.source="https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4" \
+      model.revision="d23c6ff198a005532746610e9d719c9f6d27a2b1"
+
+# Small files (configuration, tokenizer, chat template).
+ADD --chmod=644 --checksum=sha256:f88aad53f300b6445ca79249c9c98ec45f82576bfec27f7354ba1729d6788776 ${HF_URL}/config.json /models/config.json
+ADD --chmod=644 --checksum=sha256:df6f86c3fdce573ecdb55cec35f502ddda70e70abe78288a78164aef120232e7 ${HF_URL}/generation_config.json /models/generation_config.json
+ADD --chmod=644 --checksum=sha256:c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041 ${HF_URL}/chat_template.jinja /models/chat_template.jinja
+ADD --chmod=644 --checksum=sha256:bfbc24af59a3e73a9cd0653b8d4ae758dfaec4e3e6c15dfb1c6c8ee8d5683c85 ${HF_URL}/processor_config.json /models/processor_config.json
+ADD --chmod=644 --checksum=sha256:5f7aa0d810000c4a0940b35c8f16e56c3439260fccc13a321826ebc3ccf2501f ${HF_URL}/tokenizer_config.json /models/tokenizer_config.json
+ADD --chmod=644 --checksum=sha256:06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523 ${HF_URL}/tokenizer.json /models/tokenizer.json
+ADD --chmod=644 --checksum=sha256:b3332fff915f99a1cf39b9a828888c3f90c6d10246096c1385f75a021b9df6cb ${HF_URL}/recipe.yaml /models/recipe.yaml
+ADD --chmod=644 --checksum=sha256:835f853aadba376996754a2b87f997624682c1f2d379f462f0bc82f25c842bd0 ${HF_URL}/model.safetensors.index.json /models/model.safetensors.index.json
+
+# Weights: one layer each (0.85 GB, 3.9 GB, 20 GB).
+ADD --chmod=644 --checksum=sha256:1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe ${HF_URL}/model_mtp.safetensors /models/model_mtp.safetensors
+ADD --chmod=644 --checksum=sha256:bd8ad6c896bdefef83d4281a364280ccd0ca63abbcbb161f968348b182bf5f23 ${HF_URL}/model-00002-of-00002.safetensors /models/model-00002-of-00002.safetensors
+ADD --chmod=644 --checksum=sha256:0d748e71b77483ea270edc7852b0313aab7ed340fcd1d02b274ffd63b7878c01 ${HF_URL}/model-00001-of-00002.safetensors /models/model-00001-of-00002.safetensors
+
+USER 1001
