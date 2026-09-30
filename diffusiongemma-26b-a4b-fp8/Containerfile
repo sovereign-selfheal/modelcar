@@ -1,0 +1,41 @@
+# Modelcar of RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic for KServe (storageUri: oci://...).
+# The decision model of the demo: vLLM structured-read mode behind the example decision server.
+#
+# Every file comes from Hugging Face at one fixed commit and is checked with its sha256.
+# The checkpoint has one weights file (27.2 GB), so the image has one large layer.
+# The decision server reads the tokenizer files from the same directory (/mnt/models).
+#
+# Build: scripts/build-on-openshift.sh diffusiongemma-26b-a4b-fp8 <tag>  (see README.md)
+
+# DL3020: every ADD downloads a URL (${HF_URL}/...); hadolint does not expand the ARG.
+# hadolint global ignore=DL3020
+
+# ubi9/ubi-micro 9.8 (linux/amd64), resolved on registry.access.redhat.com on 2026-09-28.
+# KServe starts the modelcar as a sidecar with a shell command, so the image needs a shell.
+FROM registry.access.redhat.com/ubi9/ubi-micro@sha256:932aec77f5b86a5dba854a18b14a38725b296967e7dc9c7a1f4d7f0bf82e1ce5
+
+# Hugging Face commit of RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic, resolved on 2026-09-30
+# (last change 2026-08-13).
+ARG HF_URL=https://huggingface.co/RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic/resolve/3b3dae4697494da5a290e9c0461954449e76c4f5
+
+LABEL name="modelcar-diffusiongemma-26b-a4b-fp8" \
+      summary="DiffusionGemma 26B-A4B FP8-dynamic (RedHatAI) model files for KServe modelcar" \
+      org.opencontainers.image.source="https://github.com/sovereign-selfheal/modelcar" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      model.source="https://huggingface.co/RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic" \
+      model.revision="3b3dae4697494da5a290e9c0461954449e76c4f5"
+
+# Small files (configuration, tokenizer, chat template).
+ADD --chmod=644 --checksum=sha256:1e6e043609573eaffd9a5e0c487505cfd8acb99ab52d08f3469a8fe8c3ab756b ${HF_URL}/config.json /models/config.json
+ADD --chmod=644 --checksum=sha256:99334f763c3dbe8b161aeaca1c150a05344299fda2d2e4a0e1d342c744461200 ${HF_URL}/generation_config.json /models/generation_config.json
+ADD --chmod=644 --checksum=sha256:2f1b4d75d067bae3fe44e676721c7f077d243bc007156cb9c2f8b5836613d082 ${HF_URL}/chat_template.jinja /models/chat_template.jinja
+ADD --chmod=644 --checksum=sha256:32bdf45d2ad4cc29a0822ddd157a182de76644f0419a6228d151495256e9813c ${HF_URL}/processor_config.json /models/processor_config.json
+ADD --chmod=644 --checksum=sha256:a1bab8c81ed15fa6ce912ec993c66cb49392e0487fb1ea5f5f11ea3618683627 ${HF_URL}/tokenizer_config.json /models/tokenizer_config.json
+ADD --chmod=644 --checksum=sha256:cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f ${HF_URL}/tokenizer.json /models/tokenizer.json
+ADD --chmod=644 --checksum=sha256:154c5a64e085d4b5b31aa89174d34cea0600b2f79e97eab8633e79f41b38f267 ${HF_URL}/recipe.yaml /models/recipe.yaml
+ADD --chmod=644 --checksum=sha256:c7afc0be7c69594a537f5f869c032a5693cf8de3235e32c7335e1e0f268cde40 ${HF_URL}/model.safetensors.index.json /models/model.safetensors.index.json
+
+# Weights: one file, one layer (27.2 GB).
+ADD --chmod=644 --checksum=sha256:66d5620ab9a54a2be9442277dcbc169abe7bdd99d2e63a42c14a3985657e7b17 ${HF_URL}/model.safetensors /models/model.safetensors
+
+USER 1001
