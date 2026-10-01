@@ -13,11 +13,16 @@ GPU nodes can pre-pull it. Read [`AGENTS.md`](AGENTS.md) before changing anythin
 | Directory | Image | Model | Size |
 |---|---|---|---|
 | `qwen38-27b-nvfp4` | `quay.io/sovereign-selfheal/modelcar-qwen38-27b-nvfp4` | [RedHatAI/Qwen3.8-27B-NVFP4](https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4) at commit `d23c6ff` | 24.7 GB |
+| `diffusiongemma-26b-a4b-fp8` | `quay.io/sovereign-selfheal/modelcar-diffusiongemma-26b-a4b-fp8` | [RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic](https://huggingface.co/RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic) at commit `3b3dae4` | 27.2 GB |
 
 Qwen3.8-27B-NVFP4 needs a GPU with native FP4 (NVIDIA Blackwell, for example the RTX PRO 6000 of the
 AWS `g7e` instances). On older GPUs vLLM falls back to slower kernels.
 
 Step-by-step build guide for this image: [`docs/build-qwen38-27b-nvfp4.md`](docs/build-qwen38-27b-nvfp4.md).
+
+DiffusionGemma 26B-A4B FP8-dynamic is the decision model of the demo (vLLM structured-read mode). It
+needs a GPU with native FP8 (for example the L40S of the AWS `g6e` instances). Build guide:
+[`docs/build-diffusiongemma-26b-a4b-fp8.md`](docs/build-diffusiongemma-26b-a4b-fp8.md).
 
 Each `Containerfile` downloads the files from Hugging Face at a fixed commit and checks their sha256.
 Every large file is its own layer, so CRI-O pulls the layers in parallel.
